@@ -1,0 +1,7 @@
+python-dotenv
+requests
+validators
+plotly
+altair 
+pandas 
+streamlit

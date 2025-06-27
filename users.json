@@ -1,0 +1,29 @@
+{
+  "Chaitanya": {
+    "password_hash": "7bf2fa16b270b429e723f8be297dba2f5efd2dd8408c107d6f407429a0f6b3ca",
+    "access_token": "",
+    "created_at": "2025-06-27T15:30:00",
+    "is_active": true,
+    "is_admin": true
+  },
+  "Aneesh": {
+    "password_hash": "a428911728d0740c02495ce94047b2024fe2855a039586684854a9c1a1b328c7",
+    "access_token": "",
+    "created_at": "2025-06-27T15:30:00",
+    "is_active": true,
+    "is_admin": true
+  },
+  "Jayprakash": {
+    "password_hash": "2a2b27f106245ca3e4b6ec34ceeef9f99694283991da0f10f796ba265b7762b5",
+    "access_token": "",
+    "created_at": "2025-06-27T15:30:00",
+    "is_active": true,
+    "is_admin": true
+  },
+  "intern_user": {
+    "password_hash": "357a55b10babccd7be5ac3633a9c836de2f91d6fa2cc0818487ff9e6d8ce6c6f",
+    "access_token": "",
+    "created_at": "2025-06-27T15:30:00",
+    "is_active": true
+  }
+}
