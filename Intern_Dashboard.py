@@ -938,6 +938,7 @@ def get_project_activity(project_id, project_name, since_date, valid_names,debug
         events_params = {
             "action": "pushed",
             "per_page": 100,
+            "after": since_date.isoformat()
         }
 
         page = 1
