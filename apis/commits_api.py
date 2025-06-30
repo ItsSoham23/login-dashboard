@@ -3,6 +3,10 @@ from utils.auth import get_gitlab_headers
 from datetime import datetime, timedelta
 from urllib.parse import quote
 import streamlit as st
+import os
+import time
+import requests
+import json
 import requests
 
 GITLAB_BASE_URL = "https://code.swecha.org/api/v4"
@@ -118,3 +122,94 @@ def run_commits():
         for commit in commits[:5]:  # show only first 5 per project
             summary = summarize_commit(commit['title'])
             print(f"✅ {commit['title']} by {commit['author_name']} on {commit['created_at'][:10]} - {summary}")
+
+
+
+def get_gitlab_headers(debug_mode=False):  # noqa: F811
+    """Get GitLab API headers with improved token handling"""
+    token = None
+    
+    # Primary source: session state (user-provided token)
+    if st.session_state.get('gitlab_token'):
+        token = st.session_state.gitlab_token
+    else:
+        # Fallback to secrets/environment (for development)
+        try:
+            if hasattr(st, 'secrets') and "GITLAB_TOKEN" in st.secrets:
+                token = st.secrets["GITLAB_TOKEN"]
+        except Exception as e:
+            if debug_mode:
+                st.write(f"Secrets access error: {e}")
+        
+        # Try environment variable as last resort
+        if not token:
+            token = os.getenv("GITLAB_TOKEN")
+    
+    if not token:
+        return None
+    
+    # Validate token format for user guidance
+    if not token.startswith(('glpat-', 'gloas-', 'gldt-')) and len(token) < 20:
+        if debug_mode:
+            st.warning("⚠️ Token format looks incorrect. GitLab tokens usually start with 'glpat-', 'gloas-', or 'gldt-'")
+    
+    return {"PRIVATE-TOKEN": token, "Content-Type": "application/json"}
+
+def safe_api_request(url, headers, params=None, timeout=30, retries=3,debug_mode=False):
+    """Make API request with enhanced error handling and retry logic"""
+    for attempt in range(retries):
+        try:
+            if debug_mode and attempt == 0:
+                st.write(f"🔗 API Request: {url}")
+                if params:
+                    st.write(f"📋 Parameters: {params}")
+            
+            # Rate limiting
+            time.sleep(0.1)
+            
+            response = requests.get(url, headers=headers, params=params, timeout=timeout)
+            
+            if debug_mode and attempt == 0:
+                st.write(f"📊 Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if debug_mode and isinstance(data, list) and attempt == 0:
+                        st.write(f"📝 Returned {len(data)} items")
+                    return {"success": True, "data": data}
+                except json.JSONDecodeError:
+                    return {"success": False, "error": "Invalid JSON response"}
+            
+            elif response.status_code == 404:
+                return {"success": False, "error": "Resource not found (404)"}
+            elif response.status_code == 401:
+                return {"success": False, "error": "Authentication failed (401)"}
+            elif response.status_code == 403:
+                return {"success": False, "error": "Access forbidden (403)"}
+            elif response.status_code == 429:  # Rate limited
+                wait_time = 2 ** attempt  # Exponential backoff
+                if debug_mode:
+                    st.write(f"⏳ Rate limited, waiting {wait_time}s...")
+                time.sleep(wait_time)
+                continue
+            else:
+                if attempt == retries - 1:  # Last attempt
+                    return {"success": False, "error": f"HTTP {response.status_code}: {response.text[:200]}"}
+                time.sleep(1)  # Brief wait before retry
+                continue
+                
+        except requests.exceptions.Timeout:
+            if attempt == retries - 1:
+                return {"success": False, "error": "Request timeout"}
+            time.sleep(2)
+        except requests.exceptions.ConnectionError:
+            if attempt == retries - 1:
+                return {"success": False, "error": "Connection error"}
+            time.sleep(2)
+        except Exception as e:
+            if attempt == retries - 1:
+                return {"success": False, "error": f"Request failed: {str(e)}"}
+            time.sleep(1)
+    
+    return {"success": False, "error": "Max retries exceeded"}
