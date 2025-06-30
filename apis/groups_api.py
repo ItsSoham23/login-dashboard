@@ -1,10 +1,11 @@
 # apis/groups_api.py
+import streamlit as st
 from utils.fetch import make_api_request
 from utils.auth import get_gitlab_headers
-from urllib.parse import quote
+from urllib.parse import quote  # noqa: F401
 import csv
 from apis.users_api import get_user_id
-
+from apis.commits_api import safe_api_request
 
 
 
@@ -81,3 +82,52 @@ def run_groups():
 
     else:
         print("❌ Invalid choice.")
+
+
+# @st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_group_members(group_id,debug_mode = False):
+    """Fetch all members from a GitLab group with improved error handling"""
+    headers = get_gitlab_headers()
+    if not headers:
+        return {"success": False, "error": "No valid GitLab token found"}
+    
+    if debug_mode:
+        st.write(f"🔍 Fetching members for group ID: {group_id}")  
+    
+    members = []
+    page = 1
+    per_page = 100
+    
+    while True:
+        url = f"{GITLAB_URL}/api/v4/groups/{group_id}/members/all"
+        params = {"page": page, "per_page": per_page}
+        
+        result = safe_api_request(url, headers, params)
+        
+        if not result["success"]:
+            return result
+        
+        response = result["data"]
+        
+        if not isinstance(response, list):
+            return {"success": False, "error": f"Unexpected response format. Expected list, got {type(response)}"}
+            
+        members.extend(response)
+        
+        if debug_mode:
+            st.write(f"📄 Page {page}: Found {len(response)} members")
+        
+        if len(response) < per_page:
+            break
+            
+        page += 1
+        
+        # Safety limit
+        if page > 50:
+            st.warning("⚠️ Hit page limit for members. Some members might not be loaded.")
+            break
+    
+    if debug_mode:
+        st.write(f"✅ Total members loaded: {len(members)}")
+    
+    return {"success": True, "data": members}
