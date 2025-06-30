@@ -3,8 +3,30 @@ from utils.auth import get_gitlab_headers
 from datetime import datetime, timedelta
 from urllib.parse import quote
 import streamlit as st
+import requests
 
 GITLAB_BASE_URL = "https://code.swecha.org/api/v4"
+
+
+def safe_api_request(url, headers, params=None):
+    try:
+        response = requests.get(url, headers=headers, params=params)
+        if response.status_code == 200:
+            return {"success": True, "data": response.json()}
+        else:
+            return {"success": False, "error": f"{response.status_code} - {response.text}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def get_gitlab_headers():
+    token = st.session_state.get("gitlab_token", "")
+    if not token:
+        return None
+    return {
+        "PRIVATE-TOKEN": token
+    }
+
 
 def get_projects(group_id_or_path):
     """Get all projects in a group with comprehensive error handling"""
